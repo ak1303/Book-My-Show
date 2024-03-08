@@ -17,6 +17,7 @@ import java.util.List;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
+@Table(name = "movies")
 public class Movie {
 
     @Id
@@ -36,6 +37,6 @@ public class Movie {
     private LocalDate releaseDate;
     private double duration;
 
-    @OneToMany(mappedBy = "movie")
+    @OneToMany(mappedBy = "movie", cascade = CascadeType.ALL)
     private List<Show> shows = new ArrayList<>();
 }

@@ -2,16 +2,21 @@ package Book.My.Show.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
 @Data
+@Builder
 @AllArgsConstructor
 @NoArgsConstructor
+@Table(name = "shows")
 public class Show {
 
     @Id
@@ -19,19 +24,19 @@ public class Show {
     private Integer id;
 
     private LocalDate showDate;
-    private LocalDate showTime;
+    private LocalTime showTime;
 
     @JoinColumn
     @ManyToOne
     private Movie movie;
 
-    @OneToMany(mappedBy = "show")
-    private List<ShowSeat> seats;
+    @OneToMany(mappedBy = "show", cascade = CascadeType.ALL)
+    private List<ShowSeat> seats = new ArrayList<>();
 
     @JoinColumn
     @ManyToOne
     private Theatre theatre;
 
-    @OneToMany(mappedBy = "show")
-    private List<Movie> movies;
+    @OneToMany(mappedBy = "show", cascade = CascadeType.ALL)
+    private List<Ticket> tickets = new ArrayList<>();
 }
