@@ -52,7 +52,7 @@ public class ShowService {
         for(TheatreSeat seat : seats){
             ShowSeat showSeat = ShowSeat.builder()
                     .show(show)
-                    .availability(false)
+                    .availability(true)
                     .foodCoupon(false)
                     .seatNumber(seat.getSeatNo())
                     .seatType(seat.getSeatType())
