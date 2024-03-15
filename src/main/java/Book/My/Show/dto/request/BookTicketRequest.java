@@ -8,4 +8,5 @@ import java.util.List;
 public class BookTicketRequest {
     private Integer showId;
     private List<String> selectedSeats;
+    private String emailId;
 }

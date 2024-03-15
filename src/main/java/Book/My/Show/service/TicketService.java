@@ -3,12 +3,10 @@ package Book.My.Show.service;
 import Book.My.Show.dto.request.BookTicketRequest;
 import Book.My.Show.dto.response.ViewTicketResponse;
 import Book.My.Show.exceptions.SeatNotAvailableException;
-import Book.My.Show.model.Show;
-import Book.My.Show.model.ShowSeat;
-import Book.My.Show.model.Theatre;
-import Book.My.Show.model.Ticket;
+import Book.My.Show.model.*;
 import Book.My.Show.repository.ShowRepository;
 import Book.My.Show.repository.TicketRepository;
+import Book.My.Show.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -25,13 +23,39 @@ public class TicketService {
     ShowRepository showRepository;
     @Autowired
     TicketRepository ticketRepository;
+    @Autowired
+    UserRepository userRepository;
+
+    @Autowired
+    MailService mailService;
 
     public String bookTicket(BookTicketRequest bookTicketRequest) throws Exception{
 
         List<String> selectedSeats = bookTicketRequest.getSelectedSeats();
         int showId = bookTicketRequest.getShowId();
+        Optional<Show> optionalShow= showRepository.findById(showId);
+        if(optionalShow.isPresent()){
+            Show show = showRepository.findById(showId).get();
+            int totalAmount = getTotalAmount(show, selectedSeats);
+            //All tickets can be booked now
+            //implement food coupon feature later
+            User user = userRepository.findByEmailId(bookTicketRequest.getEmailId());
+            Ticket ticket = Ticket.builder()
+                    .show(show)
+                    .seatNumbers(selectedSeats.toString())
+                    .totalAmountPaid(totalAmount)
+                    .user(user)
+                    .build();
 
-        Show show = showRepository.findById(showId).get();
+            show.getTickets().add(ticket);
+            user.getTicketList().add(ticket);
+            ticket = ticketRepository.save(ticket);
+            return "Ticket with id:"+ticket.getId()+"booked successfully";
+        }
+        else throw new Exception("Show with given id is not present in database");
+    }
+
+    private static int getTotalAmount(Show show, List<String> selectedSeats) throws SeatNotAvailableException {
         List<ShowSeat> showSeats = show.getSeats();
         int totalAmount=0;
         //calculate total amount if all selected seats available
@@ -44,17 +68,7 @@ public class TicketService {
                 }
             }
         }
-        //All tickets can be booked now
-        //implement food coupon feature later
-        Ticket ticket = Ticket.builder()
-                .show(show)
-                .seatNumbers(selectedSeats.toString())
-                .totalAmountPaid(totalAmount)
-                .build();
-        show.getTickets().add(ticket);
-
-        ticket = ticketRepository.save(ticket);
-        return "Ticket with id:"+ticket.getId()+"booked successfully";
+        return totalAmount;
     }
 
     public String cancelTicket(int ticketId) throws Exception{
@@ -80,19 +94,12 @@ public class TicketService {
     }
 
     public ViewTicketResponse viewTicket(Integer ticketId) throws  Exception{
-//        private String seatNumbers;
-//        private Integer totalAmountPaid;
-//        private String address;//theatre name + show name
-//        private LocalDate showDate;
-//        private LocalTime showTime;
-//        private String movieName;
-
         Optional<Ticket> optionalTicket = ticketRepository.findById(ticketId);
         if(optionalTicket.isPresent()){
             Ticket ticket = optionalTicket.get();
             Theatre theatre =  ticket.getShow().getTheatre();
             String address = theatre.getName()+", "+theatre.getAddress();
-            ViewTicketResponse viewTicketResponse = ViewTicketResponse.builder()
+            ViewTicketResponse  viewTicketResponse= ViewTicketResponse.builder()
                     .seatNumbers(ticket.getSeatNumbers())
                     .totalAmountPaid(ticket.getTotalAmountPaid())
                     .showDate(ticket.getShow().getShowDate())
@@ -100,6 +107,30 @@ public class TicketService {
                     .movieName(ticket.getShow().getMovie().getMovieName())
                     .address(address)
                     .build();
+            //send ticket mail
+            User user = ticket.getUser();
+            Show show = ticket.getShow();
+            String to= user.getEmailId();
+            String sub = "Movie Ticket";
+            String text = String.format("""
+                        Hi %s, Check Your Ticket, below are your details
+                         1. Movie Name : %s
+                         2. Address : %s
+                         3. Date : %s
+                         4. Time: %s
+                         5. Seats: %s
+                         6. Amount Paid: %d
+                         """,
+                    user.getName(),
+                    viewTicketResponse.getMovieName(),
+                    viewTicketResponse.getAddress(),
+                    viewTicketResponse.getShowDate(),
+                    viewTicketResponse.getShowTime(),
+                    viewTicketResponse.getSeatNumbers(),
+                    viewTicketResponse.getTotalAmountPaid()
+            );
+            mailService.generateMail(to,sub,text);
+
             return viewTicketResponse;
 
         }else{
